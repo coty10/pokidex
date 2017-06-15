@@ -9,12 +9,14 @@
 import UIKit
 import AVFoundation
 
-class PokemonVC: UIViewController, UICollectionViewDelegate, UICollectionViewDataSource, UICollectionViewDelegateFlowLayout {
+class PokemonVC: UIViewController, UICollectionViewDelegate, UICollectionViewDataSource, UICollectionViewDelegateFlowLayout, UISearchBarDelegate {
     
     @IBOutlet weak var collection: UICollectionView!
+    @IBOutlet weak var searchBar: UISearchBar!
     
+    var inSearch = false
     var pokemon = [Pokemon]()
-    
+    var filteredPokemon = [Pokemon]()
     var musicPlayer: AVAudioPlayer!
 
     override func viewDidLoad() {
@@ -22,6 +24,18 @@ class PokemonVC: UIViewController, UICollectionViewDelegate, UICollectionViewDat
         
         collection.delegate = self
         collection.dataSource = self
+        searchBar.delegate = self
+        
+        searchBar.returnKeyType = UIReturnKeyType.done
+        
+        //Looks for single or multiple taps.
+        let tap: UITapGestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(UIViewController.dismissKeyboard))
+        
+        //Uncomment the line below if you want the tap not not interfere and cancel other interactions.
+        tap.cancelsTouchesInView = false
+        view.addGestureRecognizer(tap)
+        
+        self.hideKeyboardWhenTappedAround()
         
         parsePokemonCSV()
         initAudio()
@@ -69,9 +83,16 @@ class PokemonVC: UIViewController, UICollectionViewDelegate, UICollectionViewDat
         
         if let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "PokeCell", for: indexPath) as? PokeCell {
             
-            let poke = pokemon[indexPath.row]
-            cell.configureCell(pokemon: poke)
-            
+            let poke: Pokemon!
+            if inSearch{
+                
+                poke = filteredPokemon[indexPath.row]
+                cell.configureCell(pokemon: poke)
+            } else {
+                
+                poke = pokemon[indexPath.row]
+                cell.configureCell(pokemon: poke)
+            }
             return cell
         } else {
             return UICollectionViewCell()
@@ -83,6 +104,10 @@ class PokemonVC: UIViewController, UICollectionViewDelegate, UICollectionViewDat
     }
     
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+        if inSearch {
+            
+            return filteredPokemon.count
+        }
         return pokemon.count
     }
     
@@ -105,7 +130,38 @@ class PokemonVC: UIViewController, UICollectionViewDelegate, UICollectionViewDat
             musicPlayer.play()
             sender.alpha = 1.0
         }
+    }//end musicBtnPressed
+    
+    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+        view.endEditing(true)
+    }
+
+    
+    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
+        
+        if searchBar.text == nil || searchBar.text == "" {
+            
+            inSearch = false
+            collection.reloadData()
+        } else {
+            
+            inSearch = true
+            let lower = searchBar.text!.lowercased()
+            filteredPokemon = pokemon.filter({$0.name.range(of: lower) != nil})
+            collection.reloadData()
+        }
     }
     
 }// end of PokemonVC
 
+extension UIViewController {
+    func hideKeyboardWhenTappedAround() {
+        let tap: UITapGestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(UIViewController.dismissKeyboard))
+        tap.cancelsTouchesInView = false
+        view.addGestureRecognizer(tap)
+    }
+    
+    func dismissKeyboard() {
+        view.endEditing(true)
+    }
+}
